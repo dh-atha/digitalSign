@@ -1,30 +1,19 @@
-# Digital Signature & Steganography Application
+# Digital Signature Application
 
-Aplikasi web Go untuk digital signature dan steganografi menggunakan algoritma RSA dan metode LSB (Least Significant Bit).
+Aplikasi web Go untuk digital signature menggunakan algoritma RSA.
 
 ## Fitur
 
-### 1. Digital Signature
+### Digital Signature
 
 - **Generate RSA Key Pair**: Membuat pasangan kunci RSA (1024, 2048, atau 4096 bit)
-- **Sign Document**: Menandatangani dokumen menggunakan private key RSA
-- **Verify Signature**: Memverifikasi tanda tangan digital menggunakan public key RSA
-
-### 2. Steganography
-
-- **Hide Message**: Menyembunyikan pesan dalam gambar menggunakan metode LSB
-- **Extract Message**: Mengekstrak pesan tersembunyi dari gambar
-
-### 3. Combined Operations
-
-- **Sign and Hide**: Menandatangani dokumen dan menyembunyikannya dalam gambar
-- **Extract and Verify**: Mengekstrak dokumen dari gambar dan memverifikasi tanda tangannya
+- **Sign Document**: Menandatangani dokumen menggunakan private key RSA dan mengunduh signature sebagai file .rsasig
+- **Verify Signature**: Memverifikasi tanda tangan digital menggunakan public key RSA dan file signature
 
 ## Teknologi yang Digunakan
 
 - **Go**: Bahasa pemrograman utama
 - **RSA Cryptography**: Untuk digital signature
-- **LSB Steganography**: Untuk menyembunyikan pesan dalam gambar
 - **Gorilla Mux**: Router untuk web server
 - **HTML/CSS/JavaScript**: Frontend interface
 
@@ -35,12 +24,7 @@ Aplikasi web Go untuk digital signature dan steganografi menggunakan algoritma R
 1. **Key Generation**: Menggunakan `crypto/rsa` package untuk membuat pasangan kunci
 2. **Signing**: SHA-256 hash dokumen kemudian ditandatangani dengan RSA PKCS#1 v1.5
 3. **Verification**: Memverifikasi tanda tangan menggunakan public key
-
-### LSB Steganography
-
-1. **Hiding**: Pesan disembunyikan dalam bit terakhir (LSB) dari setiap channel RGB
-2. **Extraction**: Mengekstrak bit LSB untuk merekonstruksi pesan asli
-3. **Format**: Mendukung gambar PNG dan JPEG
+4. **File Format**: Signature disimpan dalam format Base64 dengan ekstensi .rsasig
 
 ## Struktur Project
 
@@ -50,8 +34,6 @@ digitalSign/
 ├── go.mod                 # Go module definition
 ├── crypto/
 │   └── rsa.go            # RSA cryptography utilities
-├── steganography/
-│   └── lsb.go            # LSB steganography implementation
 ├── handlers/
 │   ├── main.go           # API handlers
 │   └── pages.go          # Web page handlers
@@ -76,25 +58,37 @@ digitalSign/
 ### Digital Signature
 
 - `POST /api/generate-keys` - Generate RSA key pair
-- `POST /api/sign-document` - Sign a document
+- `POST /api/sign-document` - Sign a document (returns .rsasig file)
 - `POST /api/verify-signature` - Verify signature
-
-### Steganography
-
-- `POST /api/hide-message` - Hide message in image
-- `POST /api/extract-message` - Extract message from image
-
-### Combined Operations
-
-- `POST /api/sign-and-hide` - Sign document and hide in image
-- `POST /api/extract-and-verify` - Extract and verify signed document
 
 ## Web Pages
 
 - `/` - Homepage dengan navigasi utama
 - `/digital-signature` - Halaman digital signature
-- `/steganography` - Halaman steganografi
-- `/combined` - Halaman operasi gabungan
+
+## Cara Penggunaan
+
+### 1. Generate RSA Key Pair
+
+- Pilih ukuran kunci (1024, 2048, atau 4096 bit)
+- Klik "Generate Key Pair"
+- Copy private key untuk signing
+- Copy public key untuk verification
+
+### 2. Sign Document
+
+- Upload dokumen yang akan ditandatangani
+- Paste private key pada textarea
+- Klik "Sign Document"
+- File signature (\*.rsasig) akan otomatis terunduh
+
+### 3. Verify Signature
+
+- Upload dokumen asli yang sama
+- Upload file signature (\*.rsasig)
+- Paste public key pada textarea
+- Klik "Verify Signature"
+- Hasil verifikasi akan ditampilkan
 
 ## Penjelasan Metode
 
@@ -106,34 +100,36 @@ Digital signature menggunakan RSA untuk memastikan:
 - **Integrity**: Dokumen tidak diubah setelah ditandatangani
 - **Non-repudiation**: Pengirim tidak dapat menyangkal telah menandatangani
 
-### Steganografi LSB
+### Proses Signing
 
-Steganografi LSB menyembunyikan pesan dengan:
+1. Dokumen di-hash menggunakan SHA-256
+2. Hash ditandatangani menggunakan RSA private key dengan PKCS#1 v1.5
+3. Signature di-encode dalam Base64
+4. Disimpan dalam file dengan ekstensi .rsasig
 
-- Mengubah bit terakhir (LSB) dari setiap channel RGB pixel
-- Menyimpan panjang pesan di awal untuk ekstraksi
-- Menggunakan end marker untuk menandai akhir pesan
+### Proses Verification
 
-### Operasi Gabungan
-
-Menggabungkan kedua metode untuk:
-
-- Melindungi integritas dengan digital signature
-- Menyembunyikan dokumen dan signature dalam gambar
-- Memberikan perlindungan berlapis untuk dokumen penting
+1. Dokumen di-hash menggunakan SHA-256
+2. Signature file dibaca dan di-decode dari Base64
+3. Signature diverifikasi menggunakan RSA public key
+4. Hasil verifikasi menunjukkan valid/invalid
 
 ## Keamanan
 
-- RSA key minimum 1024 bit (disarankan 2048 bit)
-- SHA-256 untuk hashing dokumen
-- End marker untuk validasi ekstraksi pesan
+- RSA key minimum 1024 bit (disarankan 2048 bit atau lebih)
+- SHA-256 untuk hashing dokumen (cryptographically secure)
+- RSA PKCS#1 v1.5 untuk signing scheme
+- Base64 encoding untuk representasi signature
 - Error handling untuk input yang tidak valid
 
-## Limitasi
+## Format File Signature
 
-- Ukuran pesan terbatas oleh ukuran gambar
-- Format gambar yang didukung: PNG dan JPEG
-- Kualitas gambar JPEG dapat menurun setelah steganografi
+File signature (.rsasig) berisi:
+
+- Base64-encoded RSA signature
+- Hasil dari signing SHA-256 hash dokumen
+- Dapat dibaca sebagai plain text
+- Ukuran tergantung pada ukuran RSA key
 
 ## Penggunaan untuk Tugas
 
@@ -142,7 +138,7 @@ Aplikasi ini dapat digunakan untuk memenuhi requirements:
 1. ✅ Aplikasi kriptografi dengan bahasa pemrograman (Go)
 2. ✅ Metode enkripsi (RSA digital signature)
 3. ✅ Perancangan dan implementasi algoritma
-4. ✅ Deklerasi dan algoritma yang jelas
+4. ✅ Deklarasi dan algoritma yang jelas
 5. ✅ Format laporan dalam bentuk web application
 
-Untuk keperluan akademik, aplikasi ini mendemonstrasikan penggunaan kriptografi RSA dan steganografi dalam konteks praktis.
+Untuk keperluan akademik, aplikasi ini mendemonstrasikan penggunaan kriptografi RSA dalam konteks digital signature yang praktis dan aman.

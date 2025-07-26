@@ -28,16 +28,6 @@ func main() {
 	r.HandleFunc("/api/sign-document", handlers.SignDocumentHandler).Methods("POST")
 	r.HandleFunc("/api/verify-signature", handlers.VerifySignatureHandler).Methods("POST")
 
-	// Steganography routes
-	r.HandleFunc("/steganography", handlers.SteganographyPageHandler).Methods("GET")
-	r.HandleFunc("/api/hide-message", handlers.HideMessageHandler).Methods("POST")
-	r.HandleFunc("/api/extract-message", handlers.ExtractMessageHandler).Methods("POST")
-
-	// Combined operations
-	r.HandleFunc("/combined", handlers.CombinedPageHandler).Methods("GET")
-	r.HandleFunc("/api/sign-and-hide", handlers.SignAndHideHandler).Methods("POST")
-	r.HandleFunc("/api/extract-and-verify", handlers.ExtractAndVerifyHandler).Methods("POST")
-
 	log.Println("Server starting on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }

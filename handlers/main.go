@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -12,7 +11,6 @@ import (
 	"strings"
 
 	"digitalSign/crypto"
-	"digitalSign/steganography"
 )
 
 // HomeHandler serves the main page
@@ -50,23 +48,15 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
         
         <div class="description">
             <h3>Aplikasi Kriptografi dengan RSA</h3>
-            <p>Aplikasi ini menyediakan fitur-fitur:</p>
+            <p>Aplikasi ini menyediakan fitur:</p>
             <ul>
                 <li><strong>Digital Signature:</strong> Menandatangani dan memverifikasi dokumen menggunakan RSA</li>
-                <li><strong>Steganography:</strong> Menyembunyikan dan mengekstrak pesan dalam gambar</li>
-                <li><strong>Combined Operations:</strong> Menggabungkan kedua operasi</li>
             </ul>
         </div>
         
         <div class="nav-buttons">
             <a href="/digital-signature" class="nav-button">
                 🔐 Digital Signature
-            </a>
-            <a href="/steganography" class="nav-button">
-                🖼️ Steganography
-            </a>
-            <a href="/combined" class="nav-button">
-                🔧 Combined Operations
             </a>
         </div>
     </div>
@@ -176,7 +166,7 @@ func SignDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	if lastDot := strings.LastIndex(originalFilename, "."); lastDot != -1 {
 		originalFilename = originalFilename[:lastDot]
 	}
-	signatureFilename := originalFilename + ".sig"
+	signatureFilename := originalFilename + "_sig.rsasig"
 	encodedFilename := url.PathEscape(signatureFilename)
 
 	// Set headers for file download
@@ -261,270 +251,6 @@ func VerifySignatureHandler(w http.ResponseWriter, r *http.Request) {
 	response := VerifyResponse{
 		Valid:   true,
 		Message: "Signature is valid",
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-// HideMessageHandler hides a message in an image
-func HideMessageHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse multipart form
-	err := r.ParseMultipartForm(10 << 20) // 10 MB max
-	if err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
-	}
-
-	// Get image
-	imageFile, _, err := r.FormFile("image")
-	if err != nil {
-		http.Error(w, "No image provided", http.StatusBadRequest)
-		return
-	}
-	defer imageFile.Close()
-
-	// Get message
-	message := r.FormValue("message")
-	if message == "" {
-		http.Error(w, "No message provided", http.StatusBadRequest)
-		return
-	}
-
-	// Decode image
-	img, format, err := steganography.DecodeImage(imageFile)
-	if err != nil {
-		http.Error(w, "Failed to decode image: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Hide message
-	newImg, err := steganography.HideMessage(img, message)
-	if err != nil {
-		http.Error(w, "Failed to hide message: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Set appropriate content type
-	switch format {
-	case "png":
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"stego_image.png\"")
-	case "jpeg":
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"stego_image.jpg\"")
-	}
-
-	// Encode and send image
-	err = steganography.EncodeImage(w, newImg, format)
-	if err != nil {
-		http.Error(w, "Failed to encode image: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-// ExtractMessageHandler extracts a message from an image
-func ExtractMessageHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse multipart form
-	err := r.ParseMultipartForm(10 << 20) // 10 MB max
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to parse form"})
-		return
-	}
-
-	// Get image
-	imageFile, _, err := r.FormFile("image")
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "No image provided"})
-		return
-	}
-	defer imageFile.Close()
-
-	// Decode image
-	img, _, err := steganography.DecodeImage(imageFile)
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to decode image: " + err.Error()})
-		return
-	}
-
-	// Extract message
-	message, err := steganography.ExtractMessage(img)
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to extract message: " + err.Error()})
-		return
-	}
-
-	response := map[string]string{
-		"message": message,
-		"success": "Message extracted successfully",
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-// SignAndHideHandler combines digital signature and steganography
-func SignAndHideHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse multipart form
-	err := r.ParseMultipartForm(10 << 20) // 10 MB max
-	if err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
-	}
-
-	// Get document
-	docFile, _, err := r.FormFile("document")
-	if err != nil {
-		http.Error(w, "No document provided", http.StatusBadRequest)
-		return
-	}
-	defer docFile.Close()
-
-	document, err := io.ReadAll(docFile)
-	if err != nil {
-		http.Error(w, "Failed to read document", http.StatusBadRequest)
-		return
-	}
-
-	// Get image
-	imageFile, _, err := r.FormFile("image")
-	if err != nil {
-		http.Error(w, "No image provided", http.StatusBadRequest)
-		return
-	}
-	defer imageFile.Close()
-
-	// Get private key
-	privateKeyPEM := r.FormValue("privateKey")
-	if privateKeyPEM == "" {
-		http.Error(w, "No private key provided", http.StatusBadRequest)
-		return
-	}
-
-	privateKey, err := crypto.ParsePrivateKeyFromPEM(privateKeyPEM)
-	if err != nil {
-		http.Error(w, "Invalid private key: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Sign document
-	signature, err := crypto.SignDocument(document, privateKey)
-	if err != nil {
-		http.Error(w, "Failed to sign document: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Decode image
-	img, format, err := steganography.DecodeImage(imageFile)
-	if err != nil {
-		http.Error(w, "Failed to decode image: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Prepare message with signature
-	message := fmt.Sprintf("SIGNED_DOCUMENT:%s:SIGNATURE:%s", string(document), signature)
-
-	// Hide message in image
-	newImg, err := steganography.HideMessage(img, message)
-	if err != nil {
-		http.Error(w, "Failed to hide message: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Set appropriate content type
-	switch format {
-	case "png":
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"signed_stego_image.png\"")
-	case "jpeg":
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Header().Set("Content-Disposition", "attachment; filename=\"signed_stego_image.jpg\"")
-	}
-
-	// Encode and send image
-	err = steganography.EncodeImage(w, newImg, format)
-	if err != nil {
-		http.Error(w, "Failed to encode image: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-// ExtractAndVerifyHandler extracts and verifies a signed document from an image
-func ExtractAndVerifyHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse multipart form
-	err := r.ParseMultipartForm(10 << 20) // 10 MB max
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to parse form"})
-		return
-	}
-
-	// Get image
-	imageFile, _, err := r.FormFile("image")
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "No image provided"})
-		return
-	}
-	defer imageFile.Close()
-
-	// Get public key
-	publicKeyPEM := r.FormValue("publicKey")
-	if publicKeyPEM == "" {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "No public key provided"})
-		return
-	}
-
-	publicKey, err := crypto.ParsePublicKeyFromPEM(publicKeyPEM)
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid public key: " + err.Error()})
-		return
-	}
-
-	// Decode image
-	img, _, err := steganography.DecodeImage(imageFile)
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to decode image: " + err.Error()})
-		return
-	}
-
-	// Extract message
-	message, err := steganography.ExtractMessage(img)
-	if err != nil {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to extract message: " + err.Error()})
-		return
-	}
-
-	// Parse the message to extract document and signature
-	// Expected format: "SIGNED_DOCUMENT:<document>:SIGNATURE:<signature>"
-	if len(message) < 16 || message[:16] != "SIGNED_DOCUMENT:" {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid message format"})
-		return
-	}
-
-	// Find signature separator
-	sigIndex := bytes.Index([]byte(message), []byte(":SIGNATURE:"))
-	if sigIndex == -1 {
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Signature not found in message"})
-		return
-	}
-
-	document := message[16:sigIndex]
-	signature := message[sigIndex+11:] // +11 for ":SIGNATURE:"
-
-	// Verify signature
-	err = crypto.VerifySignature([]byte(document), signature, publicKey)
-
-	response := map[string]interface{}{
-		"document":  document,
-		"signature": signature,
-		"valid":     err == nil,
-	}
-
-	if err != nil {
-		response["error"] = "Signature verification failed: " + err.Error()
-	} else {
-		response["message"] = "Document extracted and signature verified successfully"
 	}
 
 	json.NewEncoder(w).Encode(response)

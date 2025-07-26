@@ -19,7 +19,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Digital Signature & Steganography</title>
+    <title>Digital Signature</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -44,7 +44,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
     <div class="container">
-        <h1>Digital Signature & Steganography Application</h1>
+        <h1>Digital Signature Application</h1>
         
         <div class="description">
             <h3>Aplikasi Kriptografi dengan RSA</h3>
